@@ -79,3 +79,53 @@ func (r *IncidentRepository) GetByID(ctx context.Context, id uuid.UUID) (*models
 	}
 	return incident, nil
 }
+
+func (r *IncidentRepository) Update(ctx context.Context, incident *models.Incident) error {
+	query := `
+		UPDATE incidents SET 
+			name = $1
+			description = $2
+			location = ST_SetSRID(ST_MakePoint($3, $4), 4326)
+			radius_meters = $5
+			status = $6
+			updated_at = NOW()
+		WHERE id = $7
+		`
+	cmdTag, err := r.db.Exec(ctx, query,
+		incident.Name,
+		incident.Description,
+		incident.Longitude,
+		incident.Latitude,
+		incident.RadiusMeters,
+		incident.Status,
+		incident.ID,
+	)
+	if err != nil {
+		return fmt.Errorf("failed to update incident: %w", err)
+	}
+
+	// Проверка, была ли хоть обновление одной строки, если RowsAffected() == 0, значит инцидента с таким id не существует
+	if cmdTag.RowsAffected() == 0 {
+		return fmt.Errorf("incident with id %s not found for update", incident.ID)
+	}
+	return nil
+}
+
+// Delete(деактивация) устанавливает статус 'inactive' для инцидента
+func (r *IncidentRepository) Delete(ctx context.Context, id uuid.UUID) error {
+	query := `
+		UPDATE incidents SET
+			status = 'inactive',
+			updated_at = NOW()
+		WHERE id = $1 
+	`
+	cmdTag, err := r.db.Exec(ctx, query, id)
+	if err != nil {
+		return fmt.Errorf("failed to deactivate incident: %w", err)
+	}
+
+	if cmdTag.RowsAffected() == 0 {
+		return fmt.Errorf("incident with id %s not found for deactivate", id)
+	}
+	return nil
+}
