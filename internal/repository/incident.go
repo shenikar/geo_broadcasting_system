@@ -129,3 +129,53 @@ func (r *IncidentRepository) Delete(ctx context.Context, id uuid.UUID) error {
 	}
 	return nil
 }
+
+func (r *IncidentRepository) List(ctx context.Context, page, pageSize int) ([]*models.Incident, error) {
+	// рассчитываем смещение
+	offset := (page - 1) * pageSize
+
+	query := `
+		SELECT 
+			id,
+			name,
+			description,
+			ST_Y(location::geometry) as latitude,
+			ST_X(location::geometry) as longitude,
+			radius_meters,
+			status,
+			created_at,
+			updated_at
+		FROM incidents
+		ORDER BY created_at DESC
+		LIMIT $1 OFFSET $2
+	`
+	rows, err := r.db.Query(ctx, query, pageSize, offset)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list incidents: %w", err)
+	}
+	defer rows.Close()
+
+	incidents := make([]*models.Incident, 0)
+	for rows.Next() {
+		incident := &models.Incident{}
+		err := rows.Scan(
+			&incident.ID,
+			&incident.Name,
+			&incident.Description,
+			&incident.Latitude,
+			&incident.Longitude,
+			&incident.RadiusMeters,
+			&incident.Status,
+			&incident.CreatedAt,
+			&incident.UpdatedAt,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("failed to scan incident row: %w", err)
+		}
+		incidents = append(incidents, incident)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("error list iteration: %w", err)
+	}
+	return incidents, nil
+}
