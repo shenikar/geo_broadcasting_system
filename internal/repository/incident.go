@@ -89,7 +89,7 @@ func (r *IncidentRepository) Update(ctx context.Context, incident *models.Incide
 			radius_meters = $5
 			status = $6
 			updated_at = NOW()
-		WHERE id = $7
+		WHERE id = $7;
 		`
 	cmdTag, err := r.db.Exec(ctx, query,
 		incident.Name,
@@ -117,7 +117,7 @@ func (r *IncidentRepository) Delete(ctx context.Context, id uuid.UUID) error {
 		UPDATE incidents SET
 			status = 'inactive',
 			updated_at = NOW()
-		WHERE id = $1 
+		WHERE id = $1;
 	`
 	cmdTag, err := r.db.Exec(ctx, query, id)
 	if err != nil {
@@ -130,7 +130,8 @@ func (r *IncidentRepository) Delete(ctx context.Context, id uuid.UUID) error {
 	return nil
 }
 
-func (r *IncidentRepository) List(ctx context.Context, page, pageSize int) ([]*models.Incident, error) {
+// List возвращает список инцидентов с пагинацией
+func (r *IncidentRepository) ListIncidents(ctx context.Context, page, pageSize int) ([]*models.Incident, error) {
 	// рассчитываем смещение
 	offset := (page - 1) * pageSize
 
@@ -147,7 +148,7 @@ func (r *IncidentRepository) List(ctx context.Context, page, pageSize int) ([]*m
 			updated_at
 		FROM incidents
 		ORDER BY created_at DESC
-		LIMIT $1 OFFSET $2
+		LIMIT $1 OFFSET $2;
 	`
 	rows, err := r.db.Query(ctx, query, pageSize, offset)
 	if err != nil {
@@ -176,6 +177,58 @@ func (r *IncidentRepository) List(ctx context.Context, page, pageSize int) ([]*m
 	}
 	if err := rows.Err(); err != nil {
 		return nil, fmt.Errorf("error list iteration: %w", err)
+	}
+	return incidents, nil
+}
+
+// FindActiveByLocation находит активные инциденты, в радиус которых попадает точка
+func (r *IncidentRepository) FindActiveLocation(ctx context.Context, lat, lon float64) ([]*models.Incident, error) {
+	query := `
+		SELECT 
+			id,
+			name,
+			description,
+			ST_Y(location::geometry) as latitude,
+			ST_X(location::geometry) as longitude,
+			radius_meters,
+			status,
+			created_at,
+			updated_at
+		FROM incidents
+		WHERE
+			status = 'active'
+			AND ST_DWithin(
+				location,
+				ST_SetSRID(ST_MakePoint($1, $2), 4326)::geography,
+				radius_meters
+			);
+		`
+	rows, err := r.db.Query(ctx, query, lon, lat)
+	if err != nil {
+		return nil, fmt.Errorf("failed to find active incidents by location: %w", err)
+	}
+	defer rows.Close()
+	incidents := make([]*models.Incident, 0)
+	for rows.Next() {
+		incident := &models.Incident{}
+		err := rows.Scan(
+			&incident.ID,
+			&incident.Name,
+			&incident.Description,
+			&incident.Latitude,
+			&incident.Longitude,
+			&incident.RadiusMeters,
+			&incident.Status,
+			&incident.CreatedAt,
+			&incident.UpdatedAt,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("failed to scan incident row in FindActiveLocation: %w", err)
+		}
+		incidents = append(incidents, incident)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("error list iteration in FindActiveLocation: %w", err)
 	}
 	return incidents, nil
 }
