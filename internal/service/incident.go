@@ -16,7 +16,7 @@ type IncidentRepository interface {
 	Update(ctx context.Context, incident *models.Incident) error
 	Delete(ctx context.Context, id uuid.UUID) error
 	ListIncidents(ctx context.Context, page, pageSize int) ([]*models.Incident, error)
-	FindActiveByLocation(ctx context.Context, lat, lon float64) ([]*models.Incident, error)
+	FindActiveLocation(ctx context.Context, lat, lon float64) ([]*models.Incident, error)
 }
 
 // IncidentService определяет контрак для бизнес-логики управления инцидентами
@@ -170,7 +170,7 @@ func (s *incidentService) CheckLocation(ctx context.Context, userID string, lat,
 	})
 	log.Info("Checking user location")
 
-	activeIncident, err := s.repo.FindActiveByLocation(ctx, lat, lon)
+	activeIncident, err := s.repo.FindActiveLocation(ctx, lat, lon)
 	if err != nil {
 		log.WithError(err).Error("Failed to find active incidents by location")
 		return nil, fmt.Errorf("service: failed to find active incidents: %w", err)
