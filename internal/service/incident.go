@@ -132,3 +132,51 @@ func (s *incidentService) DeactivateIncident(ctx context.Context, id uuid.UUID) 
 	return nil
 
 }
+
+// ListIncidents возвращает список инцидентов с пагинацией
+func (s *incidentService) ListIncidents(ctx context.Context, page, pageSize int) ([]*models.Incident, error) {
+	if page < 1 {
+		page = 1
+	}
+
+	if pageSize < 1 || pageSize > 100 {
+		pageSize = 20
+	}
+
+	log := s.logger.WithFields(logrus.Fields{
+		"service":   "incident",
+		"method":    "ListIncidents",
+		"page":      page,
+		"page_size": pageSize,
+	})
+	log.Info("Listing incidents")
+
+	incidents, err := s.repo.ListIncidents(ctx, page, pageSize)
+	if err != nil {
+		log.WithError(err).Error("Failed to list incidents from repository")
+		return nil, fmt.Errorf("service: could not list incidents: %w", err)
+	}
+
+	log.WithField("count", len(incidents)).Info("Incidents listed successfully")
+	return incidents, nil
+}
+
+// CheckLocation находит активные инциденты
+func (s *incidentService) CheckLocation(ctx context.Context, userID string, lat, lon float64) ([]*models.Incident, error) {
+	log := s.logger.WithFields(logrus.Fields{
+		"service": "incident",
+		"method":  "DeactivateIncident",
+		"user_id": userID,
+	})
+	log.Info("Checking user location")
+
+	activeIncident, err := s.repo.FindActiveByLocation(ctx, lat, lon)
+	if err != nil {
+		log.WithError(err).Error("Failed to find active incidents by location")
+		return nil, fmt.Errorf("service: failed to find active incidents: %w", err)
+	}
+	isDanger := len(activeIncident) > 0
+	log.WithField("is_danger", isDanger).Info("Location check completed")
+
+	return activeIncident, nil
+}
