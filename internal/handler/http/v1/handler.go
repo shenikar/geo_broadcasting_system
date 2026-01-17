@@ -157,6 +157,19 @@ func (h *Handler) checkLocation(c *gin.Context) {
 	c.JSON(http.StatusOK, ModelsToIncidentResponses(incidents))
 }
 
+func (h *Handler) getStats(c *gin.Context) {
+	log := h.logger.WithField("method", "getStats")
+
+	userCount, err := h.incidentService.GetStats(c.Request.Context())
+	if err != nil {
+		log.WithError(err).Error("Failed to get stats from service")
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal server error"})
+		return
+	}
+
+	c.JSON(http.StatusOK, StatsResponse{UserCount: userCount})
+}
+
 func (h *Handler) healthCheck(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"status": "ok"})
 }
