@@ -7,6 +7,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
 	"github.com/google/uuid"
+	"github.com/shenikar/geo_broadcasting_system/internal/config"
 	"github.com/shenikar/geo_broadcasting_system/internal/service"
 	"github.com/sirupsen/logrus"
 )
@@ -15,13 +16,15 @@ type Handler struct {
 	incidentService service.IncidentService
 	logger          *logrus.Logger
 	validate        *validator.Validate
+	cfg             *config.Config
 }
 
-func NewHandler(incidentService service.IncidentService, logger *logrus.Logger) *Handler {
+func NewHandler(incidentService service.IncidentService, logger *logrus.Logger, cfg *config.Config) *Handler {
 	return &Handler{
 		incidentService: incidentService,
 		logger:          logger,
 		validate:        validator.New(),
+		cfg:             cfg,
 	}
 }
 
