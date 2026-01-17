@@ -6,7 +6,7 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-func New() *logrus.Logger {
+func New(logLevel string) *logrus.Logger {
 	log := logrus.New()
 
 	log.SetFormatter(&logrus.JSONFormatter{})
@@ -14,9 +14,9 @@ func New() *logrus.Logger {
 	log.SetOutput(os.Stdout)
 
 	// Уровень логирования
-	level, err := logrus.ParseLevel(os.Getenv("LOG_LEVEL"))
+	level, err := logrus.ParseLevel(logLevel)
 	if err != nil {
-		level = logrus.InfoLevel
+		level = logrus.InfoLevel // Уровень по умолчанию, если передан некорректный
 	}
 	log.SetLevel(level)
 	return log
