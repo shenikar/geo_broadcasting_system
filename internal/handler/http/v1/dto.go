@@ -38,6 +38,7 @@ type IncidentResponse struct {
 	UpdatedAt    time.Time `json:"updated_at"`
 }
 
+// LocationCheckRequest DTO для проверки координат
 type LocationCheckRequest struct {
 	UserID    string  `json:"user_id" validate:"required"`
 	Latitude  float64 `json:"latitude" validate:"required,latitude"`
