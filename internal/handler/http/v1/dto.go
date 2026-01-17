@@ -44,3 +44,8 @@ type LocationCheckRequest struct {
 	Latitude  float64 `json:"latitude" validate:"required,latitude"`
 	Longitude float64 `json:"longitude" validate:"required,longitude"`
 }
+
+// StatsResponse DTO для ответа со статистикой
+type StatsResponse struct {
+	UserCount int `json:"user_count"`
+}
