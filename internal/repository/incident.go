@@ -2,23 +2,28 @@ package repository
 
 import (
 	"context"
+	"encoding/json" // New import for JSON serialization
 	"errors"
 	"fmt"
+	"time" // New import for cache expiration
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/redis/go-redis/v9"
 	"github.com/shenikar/geo_broadcasting_system/internal/models"
 	"github.com/shenikar/geo_broadcasting_system/internal/service"
 )
 
 type IncidentRepository struct {
-	db *pgxpool.Pool
+	db          *pgxpool.Pool
+	redisClient *redis.Client
 }
 
-func NewIncidentRepository(db *pgxpool.Pool) service.IncidentRepository {
+func NewIncidentRepository(db *pgxpool.Pool, redisClient *redis.Client) service.IncidentRepository {
 	return &IncidentRepository{
-		db: db,
+		db:          db,
+		redisClient: redisClient,
 	}
 }
 
@@ -26,7 +31,7 @@ func NewIncidentRepository(db *pgxpool.Pool) service.IncidentRepository {
 func (r *IncidentRepository) Create(ctx context.Context, incident *models.Incident) error {
 	query := `
 		INSERT INTO incidents (name, description, location, radius_meters, status)
-		VALUES ($1, $2, ST_SetSRID(ST_MakePoint($3, $4), 4326), $5, $6) RETURING id, created_at, updated_at;	
+		VALUES ($1, $2, ST_SetSRID(ST_MakePoint($3, $4), 4326), $5, $6) RETURNING id, created_at, updated_at;	
 	`
 	err := r.db.QueryRow(ctx, query,
 		incident.Name,
@@ -83,11 +88,11 @@ func (r *IncidentRepository) GetByID(ctx context.Context, id uuid.UUID) (*models
 func (r *IncidentRepository) Update(ctx context.Context, incident *models.Incident) error {
 	query := `
 		UPDATE incidents SET 
-			name = $1
-			description = $2
-			location = ST_SetSRID(ST_MakePoint($3, $4), 4326)
-			radius_meters = $5
-			status = $6
+			name = $1,
+			description = $2,
+			location = ST_SetSRID(ST_MakePoint($3, $4), 4326),
+			radius_meters = $5,
+			status = $6,
 			updated_at = NOW()
 		WHERE id = $7;
 		`
@@ -231,4 +236,81 @@ func (r *IncidentRepository) FindActiveLocation(ctx context.Context, lat, lon fl
 		return nil, fmt.Errorf("error list iteration in FindActiveLocation: %w", err)
 	}
 	return incidents, nil
+}
+
+// GetLocationCheckStats возвращает количество уникальных пользователей, проверивших геолокацию
+func (r *IncidentRepository) GetLocationCheckStats(ctx context.Context, minutes int) (int, error) {
+	query := `
+		SELECT COUNT(DISTINCT user_id)
+		FROM location_checks
+		WHERE checked_at >= NOW() - ($1 * INTERVAL '1 minute');
+	`
+	var count int
+	err := r.db.QueryRow(ctx, query, minutes).Scan(&count)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return 0, nil
+		}
+		return 0, fmt.Errorf("failed to get location check stats: %w", err)
+	}
+	return count, nil
+}
+
+// SaveLocationCheck сохраняет запись о проверке местоположения в бд
+func (r *IncidentRepository) SaveLocationCheck(ctx context.Context, check *models.LocationCheck) error {
+	query := `
+		INSERT INTO location_checks (user_id, location, is_dangerous)
+		VALUES ($1, ST_SetSRID(ST_MakePoint($2, $3), 4326), $4) RETURNING id, checked_at;
+	`
+	err := r.db.QueryRow(ctx, query,
+		check.UserID,
+		check.Longitude,
+		check.Latitude,
+		check.IsDangerous,
+	).Scan(&check.ID, &check.CheckedAt)
+	if err != nil {
+		return fmt.Errorf("failed to save location check: %w", err)
+	}
+	return nil
+}
+
+// GetIncidentFromCache пытается получить инцидент из Redis
+func (r *IncidentRepository) GetIncidentFromCache(ctx context.Context, id uuid.UUID) (*models.Incident, error) {
+	key := fmt.Sprintf("incident:%s", id.String())
+	val, err := r.redisClient.Get(ctx, key).Bytes()
+	if err != nil {
+		if errors.Is(err, redis.Nil) {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("failed to get incident from cache: %w", err)
+	}
+
+	incident := &models.Incident{}
+	if err := json.Unmarshal(val, incident); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal incident from cache: %w", err)
+	}
+	return incident, nil
+}
+
+// SetIncidentCache сохраняет инцидент в Redis
+func (r *IncidentRepository) SetIncidentCache(ctx context.Context, incident *models.Incident) error {
+	key := fmt.Sprintf("incident:%s", incident.ID.String())
+	val, err := json.Marshal(incident)
+	if err != nil {
+		return fmt.Errorf("failed to marshal incident for cache: %w", err)
+	}
+	// Устанавливаем срок жизни кэша, например, 5 минут
+	if err := r.redisClient.Set(ctx, key, val, 5*time.Minute).Err(); err != nil {
+		return fmt.Errorf("failed to set incident in cache: %w", err)
+	}
+	return nil
+}
+
+// InvalidateIncidentCache удаляет инцидент из Redis кэша
+func (r *IncidentRepository) InvalidateIncidentCache(ctx context.Context, id uuid.UUID) error {
+	key := fmt.Sprintf("incident:%s", id.String())
+	if err := r.redisClient.Del(ctx, key).Err(); err != nil {
+		return fmt.Errorf("failed to invalidate incident cache: %w", err)
+	}
+	return nil
 }
