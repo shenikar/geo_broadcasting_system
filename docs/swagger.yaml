@@ -1,0 +1,409 @@
+basePath: /api/v1
+definitions:
+  v1.CreateIncidentRequest:
+    description: DTO для создания инцидента
+    properties:
+      description:
+        type: string
+      latitude:
+        type: number
+      longitude:
+        type: number
+      name:
+        maxLength: 255
+        minLength: 2
+        type: string
+      radius_meters:
+        type: integer
+    required:
+    - latitude
+    - longitude
+    - name
+    - radius_meters
+    type: object
+  v1.IncidentResponse:
+    description: DTO для ответа с информацией об инциденте
+    properties:
+      created_at:
+        type: string
+      description:
+        type: string
+      id:
+        type: string
+      latitude:
+        type: number
+      longitude:
+        type: number
+      name:
+        type: string
+      radius_meters:
+        type: integer
+      status:
+        type: string
+      updated_at:
+        type: string
+    type: object
+  v1.LocationCheckRequest:
+    description: DTO для проверки координат
+    properties:
+      latitude:
+        type: number
+      longitude:
+        type: number
+      user_id:
+        type: string
+    required:
+    - latitude
+    - longitude
+    - user_id
+    type: object
+  v1.StatsResponse:
+    description: DTO для ответа со статистикой
+    properties:
+      user_count:
+        type: integer
+    type: object
+  v1.UpdateIncidentRequest:
+    description: DTO для обновления инцидента
+    properties:
+      description:
+        type: string
+      latitude:
+        type: number
+      longitude:
+        type: number
+      name:
+        maxLength: 255
+        minLength: 2
+        type: string
+      radius_meters:
+        type: integer
+      status:
+        enum:
+        - active
+        - inactive
+        type: string
+    required:
+    - latitude
+    - longitude
+    - name
+    - radius_meters
+    - status
+    type: object
+host: localhost:8080
+info:
+  contact: {}
+  description: This is a Geo Broadcasting System API server.
+  title: Geo Broadcasting System API
+  version: "1.0"
+paths:
+  /incidents:
+    get:
+      consumes:
+      - application/json
+      description: Get a paginated list of all incidents. Requires API key.
+      parameters:
+      - default: 1
+        description: Page number
+        in: query
+        name: page
+        type: integer
+      - default: 10
+        description: Number of items per page
+        in: query
+        name: pageSize
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/v1.IncidentResponse'
+            type: array
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - ApiKeyAuth: []
+      summary: Get a list of incidents
+      tags:
+      - Incidents
+    post:
+      consumes:
+      - application/json
+      description: Create a new incident in the system. Requires API key.
+      parameters:
+      - description: Incident creation request
+        in: body
+        name: incident
+        required: true
+        schema:
+          $ref: '#/definitions/v1.CreateIncidentRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/v1.IncidentResponse'
+        "400":
+          description: Invalid request body or validation error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - ApiKeyAuth: []
+      summary: Create a new incident
+      tags:
+      - Incidents
+  /incidents/{id}:
+    delete:
+      consumes:
+      - application/json
+      description: Deactivate an incident by its ID. This marks the incident as inactive.
+        Requires API key.
+      parameters:
+      - description: Incident ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: No Content
+        "400":
+          description: Invalid incident ID
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - ApiKeyAuth: []
+      summary: Deactivate an incident
+      tags:
+      - Incidents
+    get:
+      consumes:
+      - application/json
+      description: Get a single incident by its ID. Requires API key.
+      parameters:
+      - description: Incident ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/v1.IncidentResponse'
+        "400":
+          description: Invalid incident ID
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Incident not found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - ApiKeyAuth: []
+      summary: Get incident by ID
+      tags:
+      - Incidents
+    put:
+      consumes:
+      - application/json
+      description: Update an existing incident by ID. Requires API key.
+      parameters:
+      - description: Incident ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Incident update request
+        in: body
+        name: incident
+        required: true
+        schema:
+          $ref: '#/definitions/v1.UpdateIncidentRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+        "400":
+          description: Invalid incident ID or request body
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - ApiKeyAuth: []
+      summary: Update an existing incident
+      tags:
+      - Incidents
+  /location/check:
+    post:
+      consumes:
+      - application/json
+      description: Check if there are any active incidents at a given location for
+        a user. Requires API key.
+      parameters:
+      - description: Location check request
+        in: body
+        name: location
+        required: true
+        schema:
+          $ref: '#/definitions/v1.LocationCheckRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/v1.IncidentResponse'
+            type: array
+        "400":
+          description: Invalid request body or validation error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - ApiKeyAuth: []
+      summary: Check location for incidents
+      tags:
+      - Location
+  /stats:
+    get:
+      consumes:
+      - application/json
+      description: Get the total count of active users. Requires API key.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/v1.StatsResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - ApiKeyAuth: []
+      summary: Get user statistics
+      tags:
+      - Admin
+  /system/health:
+    get:
+      consumes:
+      - application/json
+      description: Get health status of the application
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Status OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Get application health status
+      tags:
+      - System
+securityDefinitions:
+  ApiKeyAuth:
+    in: header
+    name: X-API-Key
+    type: apiKey
+swagger: "2.0"
