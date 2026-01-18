@@ -1,0 +1,45 @@
+services:
+  db:
+    image: postgis/postgis:15-3.3
+    container_name: postgres_db
+    restart: always
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  redis:
+    image: redis:7-alpine
+    container_name: redis_cache
+    restart: always
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: geo_broadcasting_app
+    restart: always
+    env_file:
+      - .env 
+    ports:
+      - "8080:8080"
+    depends_on:
+      - db
+      - redis
+    command: ["sh", "-c", "sleep 5 && ./geo_broadcasting_system"] 
+
+  webhook-receiver:
+    image: hashicorp/http-echo
+    container_name: webhook_receiver
+    restart: always
+    ports:
+      - "9090:9090"
+    command: ["-listen=:9090", "-text=webhook received"]
+
+volumes:
+  postgres_data:
+  redis_data:
