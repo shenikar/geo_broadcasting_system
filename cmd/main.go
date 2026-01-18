@@ -25,9 +25,20 @@ import (
 	"github.com/shenikar/geo_broadcasting_system/pkg/postgres"
 	redisclient "github.com/shenikar/geo_broadcasting_system/pkg/redis"
 	"github.com/sirupsen/logrus"
+
+	_ "github.com/shenikar/geo_broadcasting_system/docs"
+	swaggerFiles "github.com/swaggo/files"
+	ginSwagger "github.com/swaggo/gin-swagger"
 )
 
-// runMigrations выполняет миграции базы данных
+// @title Geo Broadcasting System API
+// @version 1.0
+// @description This is a Geo Broadcasting System API server.
+// @host localhost:8080
+// @BasePath /api/v1
+// @securityDefinitions.apikey ApiKeyAuth
+// @in header
+// @name X-API-Key
 func runMigrations(cfg *config.Config, log *logrus.Logger) error {
 	log.Info("Running database migrations...")
 
@@ -106,6 +117,9 @@ func main() {
 	router := gin.Default()
 	api := router.Group("/api/v1")
 	handler.RegisterRoutes(api)
+
+	// Добавление маршрута для Swagger UI
+	router.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 
 	// Запуск HTTP-сервера
 	serverAddr := fmt.Sprintf(":%s", cfg.HTTPPort)
