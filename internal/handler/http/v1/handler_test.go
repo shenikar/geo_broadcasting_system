@@ -32,7 +32,7 @@ func newTestHandler(t *testing.T) (*Handler, *mocks.MockIncidentService, *gin.En
 	logger.SetOutput(&bytes.Buffer{}) // Отключаем вывод логов в тестах
 
 	cfg := &config.Config{
-		APIKeys:               []string{"test-api-key"},
+		APIKeys:                []string{"test-api-key"},
 		StatsTimeWindowMinutes: 60,
 	}
 
@@ -67,10 +67,10 @@ func TestCreateIncident_Success(t *testing.T) {
 	_, mockService, router := newTestHandler(t)
 	incidentID := uuid.New()
 	reqBody := CreateIncidentRequest{
-		Name:        "Test Incident",
-		Description: "Description",
-		Latitude:    10.0,
-		Longitude:   20.0,
+		Name:         "Test Incident",
+		Description:  "Description",
+		Latitude:     10.0,
+		Longitude:    20.0,
 		RadiusMeters: 100,
 	}
 	expectedIncident := &models.Incident{
@@ -136,10 +136,10 @@ func TestCreateIncident_ValidationError(t *testing.T) {
 func TestCreateIncident_ServiceError(t *testing.T) {
 	_, mockService, router := newTestHandler(t)
 	reqBody := CreateIncidentRequest{
-		Name:        "Test Incident",
-		Description: "Description",
-		Latitude:    10.0,
-		Longitude:   20.0,
+		Name:         "Test Incident",
+		Description:  "Description",
+		Latitude:     10.0,
+		Longitude:    20.0,
 		RadiusMeters: 100,
 	}
 	serviceError := errors.New("failed to create incident in service")
@@ -252,12 +252,12 @@ func TestUpdateIncident_Success(t *testing.T) {
 	_, mockService, router := newTestHandler(t)
 	incidentID := uuid.New()
 	reqBody := UpdateIncidentRequest{
-		Name:        "Updated Name",
-		Description: "Updated Description",
-		Latitude:    11.0,
-		Longitude:   21.0,
+		Name:         "Updated Name",
+		Description:  "Updated Description",
+		Latitude:     11.0,
+		Longitude:    21.0,
 		RadiusMeters: 110,
-		Status:      "active",
+		Status:       "active",
 	}
 
 	mockService.EXPECT().
@@ -277,11 +277,11 @@ func TestUpdateIncident_Success(t *testing.T) {
 func TestUpdateIncident_InvalidID(t *testing.T) {
 	_, mockService, router := newTestHandler(t)
 	reqBody := UpdateIncidentRequest{
-		Name: "Updated Name",
-		Latitude: 11.0,
-		Longitude: 21.0,
+		Name:         "Updated Name",
+		Latitude:     11.0,
+		Longitude:    21.0,
 		RadiusMeters: 110,
-		Status: "active",
+		Status:       "active",
 	}
 
 	mockService.EXPECT().UpdateIncident(gomock.Any(), gomock.Any()).Times(0)
@@ -297,12 +297,12 @@ func TestUpdateIncident_ServiceError(t *testing.T) {
 	_, mockService, router := newTestHandler(t)
 	incidentID := uuid.New()
 	reqBody := UpdateIncidentRequest{
-		Name:        "Updated Name",
-		Description: "Updated Description",
-		Latitude:    11.0,
-		Longitude:   21.0,
+		Name:         "Updated Name",
+		Description:  "Updated Description",
+		Latitude:     11.0,
+		Longitude:    21.0,
 		RadiusMeters: 110,
-		Status:      "active",
+		Status:       "active",
 	}
 	serviceError := errors.New("failed to update incident")
 

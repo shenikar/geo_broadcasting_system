@@ -79,7 +79,8 @@ func main() {
 
 	// Запуск миграций
 	if err := runMigrations(cfg, log); err != nil {
-		log.Fatalf("Failed to run database migrations: %v", err)
+		log.Errorf("Failed to run database migrations: %v", err)
+		return
 	}
 
 	// Подключение к PostgreSQL
