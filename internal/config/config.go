@@ -22,9 +22,11 @@ type Config struct {
 	RedisDB   int    `env:"REDIS_DB" envDefault:"0"`
 
 	// Webhook Config
-	WebhookURL     string        `env:"WEBHOOK_URL"`
-	WebhookSecret  string        `env:"WEBHOOK_SECRET"`
-	WebhookTimeout time.Duration `env:"WEBHOOK_TIMEOUT" envDefault:"5s"`
+	WebhookURL        string        `env:"WEBHOOK_URL"`
+	WebhookSecret     string        `env:"WEBHOOK_SECRET"`
+	WebhookTimeout    time.Duration `env:"WEBHOOK_TIMEOUT" envDefault:"5s"`
+	WebhookMaxRetries int           `env:"WEBHOOK_MAX_RETRIES" envDefault:"5"`
+	WebhookBaseDelay  time.Duration `env:"WEBHOOK_BASE_DELAY_SECONDS" envDefault:"1s"`
 
 	// Stats Config
 	StatsTimeWindowMinutes int `env:"STATS_TIME_WINDOW_MINUTES" envDefault:"60"`
@@ -50,6 +52,8 @@ func LoadConfig() (*Config, error) {
 		WebhookURL:             os.Getenv("WEBHOOK_URL"),
 		WebhookSecret:          os.Getenv("WEBHOOK_SECRET"),
 		WebhookTimeout:         getEnvAsDuration("WEBHOOK_TIMEOUT", 5*time.Second),
+		WebhookMaxRetries:      getEnvAsInt("WEBHOOK_MAX_RETRIES", 5),
+		WebhookBaseDelay:       getEnvAsDuration("WEBHOOK_BASE_DELAY_SECONDS", 1*time.Second),
 		StatsTimeWindowMinutes: getEnvAsInt("STATS_TIME_WINDOW_MINUTES", 60),
 	}
 
@@ -90,8 +94,13 @@ func getEnvAsInt(key string, defaultValue int) int {
 // getEnvAsDuration возвращает значение переменной окружения как time.Duration или значение по умолчанию
 func getEnvAsDuration(key string, defaultValue time.Duration) time.Duration {
 	if value, exists := os.LookupEnv(key); exists {
+		// Allow parsing durations like "5s", "1m"
 		if durationValue, err := time.ParseDuration(value); err == nil {
 			return durationValue
+		}
+		// Also allow parsing plain integer as seconds
+		if intValue, err := strconv.Atoi(value); err == nil {
+			return time.Duration(intValue) * time.Second
 		}
 	}
 	return defaultValue

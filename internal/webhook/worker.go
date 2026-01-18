@@ -81,8 +81,8 @@ func (w *WebhookWorker) processWebhookEvent(ctx context.Context, event WebhookEv
 		return
 	}
 
-	maxRetries := 5
-	baseDelay := 1 * time.Second
+	maxRetries := w.cfg.WebhookMaxRetries
+	baseDelay := w.cfg.WebhookBaseDelay
 
 	for i := 0; i < maxRetries; i++ {
 		req, err := http.NewRequestWithContext(ctx, "POST", w.cfg.WebhookURL, bytes.NewBufferString(rawPayload))
